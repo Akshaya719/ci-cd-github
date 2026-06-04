@@ -1,35 +1,29 @@
-name: CI with GHCR
+name: Java CI pipeline
 
 on:
   push:
-    branches: ["main"]
-
-permissions:
-  contents: read
-  packages: write
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    strategy:
+      fail-fast: false
+      matrix:
+        java-version: [11, 17, 21]
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Set up JDK
+        uses: actions/setup-java@v4
         with:
-          node-version: "18"
+          distribution: temurin
+          java-version: ${{ matrix.java-version }}
 
-      - run: npm install
-      - run: npm test --if-present
-
-      - name: Login to GHCR
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-      - name: Set repo lowercase
-        run: echo "REPO=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
-
-      - name: Build Image
-        run: docker build -t ghcr.io/${REPO}/express-app:latest .
-
-      - name: Push Image
-        run: docker push ghcr.io/${REPO}/express-app:latest
+      - name: Build and test with Maven
+        run: mvn -B clean test
+   
